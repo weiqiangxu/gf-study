@@ -62,6 +62,13 @@ const (
 	tracingEventRedisExecutionArguments = "redis.execution.arguments"
 )
 
+// redis群组配置 - 在一个go程序实例之中-当前包下只有一个群组配置 - 线程安全集合
+// 全局对象g对redis cfg手动set也是对这个进行操作
+var (
+	// Configuration groups.
+	localConfigMap = gmap.NewStrAnyMap(true)
+)
+
 // Redis client.
 // 带有适配器的redis客户端  - 抽象接口
 type Redis struct {
@@ -94,7 +101,7 @@ type Conn interface {
 }
 
 // Subscription received after a successful subscription to channel.
-// 成功订阅频道后收到
+// 成功订阅频道后收到 - 结果集
 type Subscription struct {
 	Kind    string // Can be "subscribe", "unsubscribe", "psubscribe" or "punsubscribe".
 	Channel string // Channel name we have subscribed to.
@@ -176,6 +183,7 @@ func New(config ...*Config) (*Redis, error) {
 		)
 	}
 	// 适配器模式 - 直接以一个已经实现的具体对象 - 作为抽象类
+	// 传入Adapter适配器具体实现 - go-redis扩展类对象
 	return &Redis{adapter: NewAdapterGoRedis(configFromGlobal)}, nil
 }
 
@@ -185,8 +193,11 @@ func NewWithAdapter(adapter Adapter) *Redis {
 	return &Redis{adapter: adapter}
 }
 
+// 当前func直接调用go-redis为适配器实现的redis-client执行redis命令 - 最终传入go-redis对象执行go-redis的func
 // Do sends a command to the server and returns the received reply.
+// 向服务器发送命令并返回收到的回复
 // It uses json.Marshal for struct/slice/map type values before committing them to redis.
+// 在将struct/slice/map类型的值提交到redis之前，它使用json.Marshal处理这些值。
 func (c *localAdapterGoRedisConn) Do(ctx context.Context, command string, args ...interface{}) (reply *gvar.Var, err error) {
 	switch gstr.ToLower(command) {
 	case `subscribe`:
@@ -218,6 +229,8 @@ func (c *localAdapterGoRedisConn) Do(ctx context.Context, command string, args .
 }
 
 // Receive receives a single reply as gvar.Var from the Redis server.
+// 当前知识转换了一下结果集为gvar格式的结果
+// 从Redis服务器接收一个作为gvar.Var的回复
 func (c *localAdapterGoRedisConn) Receive(ctx context.Context) (*gvar.Var, error) {
 	if c.ps != nil {
 		return c.resultToVar(c.ps.Receive(ctx))
@@ -226,6 +239,7 @@ func (c *localAdapterGoRedisConn) Receive(ctx context.Context) (*gvar.Var, error
 }
 
 // Close closes current PubSub or puts the connection back to connection pool.
+// 关闭当前PubSub或将连接放回连接池
 func (c *localAdapterGoRedisConn) Close(ctx context.Context) error {
 	if c.ps != nil {
 		return c.ps.Close()
@@ -234,11 +248,13 @@ func (c *localAdapterGoRedisConn) Close(ctx context.Context) error {
 }
 
 // resultToVar converts redis operation result to gvar.Var.
+// 将redis操作结果转换为gvar.Var
 func (c *localAdapterGoRedisConn) resultToVar(result interface{}, err error) (*gvar.Var, error) {
 	if err == redis.Nil {
 		err = nil
 	}
 	if err == nil {
+		// 仍然类型断言
 		switch v := result.(type) {
 		case []byte:
 			return gvar.New(string(v)), err
@@ -270,8 +286,11 @@ func (c *localAdapterGoRedisConn) resultToVar(result interface{}, err error) (*g
 
 
 // NewAdapterGoRedis creates and returns a redis adapter using go-redis.
+// 使用go-redis创建并返回redis适配器。
 func NewAdapterGoRedis(config *Config) *AdapterGoRedis {
+	// 填充默认参数
 	fillWithDefaultConfiguration(config)
+	// 调用go-redis实例化对象获取
 	client := redis.NewUniversalClient(&redis.UniversalOptions{
 		Addrs:        gstr.SplitAndTrim(config.Address, ","),
 		Password:     config.Pass,
@@ -286,6 +305,7 @@ func NewAdapterGoRedis(config *Config) *AdapterGoRedis {
 		MasterName:   config.MasterName,
 		TLSConfig:    config.TLSConfig,
 	})
+	// 返回go-redis为实现的redis适配器
 	return &AdapterGoRedis{
 		client: client,
 		config: config,
@@ -293,19 +313,24 @@ func NewAdapterGoRedis(config *Config) *AdapterGoRedis {
 }
 
 // Close closes the redis connection pool, which will release all connections reserved by this pool.
+// 关闭redis连接池，这将释放此池保留的所有连接
 // It is commonly not necessary to call Close manually.
+// 通常不需要手动调用Close。
 func (r *AdapterGoRedis) Close(ctx context.Context) error {
 	return r.client.Close()
 }
 
 // Conn retrieves and returns a connection object for continuous operations.
+// etrieve并返回连续操作的连接对象
 // Note that you should call Close function manually if you do not use this connection any further.
+// 请注意，如果不再使用此连接，则应手动调用Close函数。
 func (r *AdapterGoRedis) Conn(ctx context.Context) (Conn, error) {
 	return &localAdapterGoRedisConn{
 		redis: r,
 	}, nil
 }
 
+// 填充默认参数
 func fillWithDefaultConfiguration(config *Config) {
 	// The MaxIdle is the most important attribute of the connection pool.
 	// Only if this attribute is set, the created connections from client
@@ -328,15 +353,6 @@ func fillWithDefaultConfiguration(config *Config) {
 	}
 }
 
-
-
-
-
-
-var (
-	// Configuration groups.
-	localConfigMap = gmap.NewStrAnyMap(true)
-)
 
 // SetConfig sets the global configuration for specified group.
 // If `name` is not passed, it sets configuration for the default group name.
