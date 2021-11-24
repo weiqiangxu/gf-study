@@ -186,8 +186,6 @@ type Config struct {
 // It creates a default redis adapter of go-redis.
 // 返回redis实现对象
 func New(config ...*Config) (*Redis, error) {
-	fmt.Println("config 175 ")
-	fmt.Println(gconv.Map(config[0]))
 	if len(config) > 0 {
 		return &Redis{adapter: NewAdapterGoRedis(config[0])}, nil
 	}
@@ -236,9 +234,9 @@ func (c *localAdapterGoRedisConn) Do(ctx context.Context, command string, args .
 		arguments := make([]interface{}, len(args)+1)
 		copy(arguments, []interface{}{command})
 		copy(arguments[1:], args)
-		fmt.Println(gconv.Map(arguments))
-		fmt.Println(len("226 ---"),arguments)
-		a,b := c.redis.client.Do(ctx, arguments...).Result()
+		cc := c.redis.client.Do(ctx, arguments...)
+		fmt.Println("cc == ",cc)
+		a,b := cc.Result()
 		reply, err = c.resultToVar(a,b)
 	}
 
@@ -308,7 +306,7 @@ func NewAdapterGoRedis(config *Config) *AdapterGoRedis {
 	// 填充默认参数
 	fillWithDefaultConfiguration(config)
 	// 调用go-redis实例化对象获取
-	client := redis.NewUniversalClient(&redis.UniversalOptions{
+	aaa := &redis.UniversalOptions{
 		Addrs:        gstr.SplitAndTrim(config.Address, ","),
 		Password:     config.Pass,
 		DB:           config.Db,
@@ -321,7 +319,9 @@ func NewAdapterGoRedis(config *Config) *AdapterGoRedis {
 		WriteTimeout: config.WriteTimeout,
 		MasterName:   config.MasterName,
 		TLSConfig:    config.TLSConfig,
-	})
+	}
+	fmt.Println("aaa ===> ",aaa)
+	client := redis.NewUniversalClient(aaa)
 	// 返回go-redis为实现的redis适配器
 	return &AdapterGoRedis{
 		client: client,
@@ -524,6 +524,8 @@ func (c *RedisConn) Do(ctx context.Context, command string, args ...interface{})
 		}
 	}
 	timestampMilli1 := gtime.TimestampMilli()
+	if len(args)>2{
+	}
 	reply, err = c.conn.Do(ctx, command, args...)
 	timestampMilli2 := gtime.TimestampMilli()
 
