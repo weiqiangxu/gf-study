@@ -39,6 +39,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// 实现关系是
+
+// redis{adapter} > RedisConn{do receive close}
+
+// AdapterGoRedis > localAdapterGoRedisConn{do receive close}
+
 const (
 	errorNilRedis = `the Redis object is nil`
 )
@@ -71,6 +77,8 @@ var (
 
 // Redis client.
 // 带有适配器的redis客户端  - 抽象接口
+// 所有的g.Redis返回的对象都是这个的实现的实例
+// 其自身实现了 - Redis == {SetAdapter设置适配器\GetAdapter获取适配器\Conn返回适配器指向的conn\Do指向适配器执行\Close指向适配器执行}
 type Redis struct {
 	adapter Adapter
 }
@@ -85,6 +93,19 @@ type Adapter interface {
 	// Close closes current redis client, closes its connection pool and releases all its related resources.
 	Close(ctx context.Context) (err error)
 }
+
+
+// RedisConn is a connection of redis client.
+// redis客户端的连接实现
+// 包含有一个待实现redis抽象类
+// RedisConn == {Conn(do reveive close) + redis(adapter(Conn Close))}
+//  ---- redis基类的实现
+// 其自身有func - {Do指向自己conn执行\Receive\Close\addTracingItem}
+type RedisConn struct {
+	conn  Conn
+	redis *Redis
+}
+
 
 // Conn is an interface of a connection from universal redis client -  待实现的抽象接口-连接对象
 // 来自universal redis客户端的连接接口
@@ -141,14 +162,6 @@ type Message struct {
 }
 
 
-// RedisConn is a connection of redis client.
-// redis客户端的连接实现
-type RedisConn struct {
-	conn  Conn
-	redis *Redis
-}
-
-
 // Config is redis configuration.
 type Config struct {
 	Address         string        `json:"address"`         // It supports single and cluster redis server. Multiple addresses joined with char ','.
@@ -171,7 +184,10 @@ type Config struct {
 
 // New creates and returns a redis client.
 // It creates a default redis adapter of go-redis.
+// 返回redis实现对象
 func New(config ...*Config) (*Redis, error) {
+	fmt.Println("config 175 ")
+	fmt.Println(gconv.Map(config[0]))
 	if len(config) > 0 {
 		return &Redis{adapter: NewAdapterGoRedis(config[0])}, nil
 	}
@@ -220,9 +236,10 @@ func (c *localAdapterGoRedisConn) Do(ctx context.Context, command string, args .
 		arguments := make([]interface{}, len(args)+1)
 		copy(arguments, []interface{}{command})
 		copy(arguments[1:], args)
-		reply, err = c.resultToVar(
-			c.redis.client.Do(ctx, arguments...).Result(),
-		)
+		fmt.Println(gconv.Map(arguments))
+		fmt.Println(len("226 ---"),arguments)
+		a,b := c.redis.client.Do(ctx, arguments...).Result()
+		reply, err = c.resultToVar(a,b)
 	}
 
 	return
@@ -355,7 +372,9 @@ func fillWithDefaultConfiguration(config *Config) {
 
 
 // SetConfig sets the global configuration for specified group.
+// 设置指定组的全局配置。
 // If `name` is not passed, it sets configuration for the default group name.
+// 如果未传递，它将为默认组名设置配置。
 func SetConfig(config *Config, name ...string) {
 	group := DefaultGroupName
 	if len(name) > 0 {
@@ -367,7 +386,9 @@ func SetConfig(config *Config, name ...string) {
 }
 
 // SetConfigByMap sets the global configuration for specified group with map.
+// 使用映射设置指定组的全局配置。
 // If `name` is not passed, it sets configuration for the default group name.
+// 如果未传递，它将为默认组名设置配置。
 func SetConfigByMap(m map[string]interface{}, name ...string) error {
 	group := DefaultGroupName
 	if len(name) > 0 {
@@ -382,6 +403,7 @@ func SetConfigByMap(m map[string]interface{}, name ...string) error {
 }
 
 // ConfigFromMap parses and returns config from given map.
+// 解析并返回给定映射中的配置。
 func ConfigFromMap(m map[string]interface{}) (config *Config, err error) {
 	config = &Config{}
 	if err = gconv.Scan(m, config); err != nil {
@@ -409,7 +431,9 @@ func ConfigFromMap(m map[string]interface{}) (config *Config, err error) {
 }
 
 // GetConfig returns the global configuration with specified group name.
+// 返回具有指定组名的全局配置。
 // If `name` is not passed, it returns configuration of the default group name.
+// 如果未传递'name'，则返回默认组名的配置
 func GetConfig(name ...string) (config *Config, ok bool) {
 	group := DefaultGroupName
 	if len(name) > 0 {
@@ -422,7 +446,9 @@ func GetConfig(name ...string) (config *Config, ok bool) {
 }
 
 // RemoveConfig removes the global configuration with specified group.
+// 删除具有指定组的全局配置。
 // If `name` is not passed, it removes configuration of the default group name.
+// 如果未传递'name'，它将删除默认组名的配置。
 func RemoveConfig(name ...string) {
 	group := DefaultGroupName
 	if len(name) > 0 {
@@ -434,6 +460,7 @@ func RemoveConfig(name ...string) {
 }
 
 // ClearConfig removes all configurations of redis.
+// 删除redis的所有配置。
 func ClearConfig() {
 	localConfigMap.Clear()
 }
@@ -444,8 +471,11 @@ var (
 )
 
 // Instance returns an instance of redis client with specified group.
+// 返回具有指定组的redis客户端实例。
 // The `name` param is unnecessary, if `name` is not passed,
+// 如果未传递'name'，则不需要'name'参数，
 // it returns a redis instance with default configuration group.
+// 它返回一个带有默认配置组的redis实例。
 func Instance(name ...string) *Redis {
 	group := DefaultGroupName
 	if len(name) > 0 && name[0] != "" {
@@ -469,8 +499,11 @@ func Instance(name ...string) *Redis {
 }
 
 
+// RedisConn == {Do指向自己conn执行\Receive\Close\addTracingItem}
 // Do sends a command to the server and returns the received reply.
+// 向服务器发送命令并返回收到的回复。
 // It uses json.Marshal for struct/slice/map type values before committing them to redis.
+// 在将struct/slice/map类型的值提交到redis之前，它使用json.Marshal处理这些值。
 func (c *RedisConn) Do(ctx context.Context, command string, args ...interface{}) (reply *gvar.Var, err error) {
 	for k, v := range args {
 		var (
@@ -505,16 +538,19 @@ func (c *RedisConn) Do(ctx context.Context, command string, args ...interface{})
 }
 
 // Receive receives a single reply as gvar.Var from the Redis server.
+// Receive从Redis服务器接收一个作为gvar.Var的回复。
 func (c *RedisConn) Receive(ctx context.Context) (*gvar.Var, error) {
 	return c.conn.Receive(ctx)
 }
 
 // Close puts the connection back to connection pool.
+// 关闭将连接放回连接池。
 func (c *RedisConn) Close(ctx context.Context) error {
 	return c.conn.Close(ctx)
 }
 
 // addTracingItem checks and adds redis tracing information to OpenTelemetry.
+// 检查并向OpenTelemetry添加redis跟踪信息
 func (c *RedisConn) addTracingItem(ctx context.Context, item *tracingItem) {
 	if !gtrace.IsTracingInternal() || !gtrace.IsActivated(ctx) {
 		return
@@ -549,7 +585,9 @@ func (c *RedisConn) addTracingItem(ctx context.Context, item *tracingItem) {
 	))
 }
 
+// Redis == {SetAdapter设置适配器\GetAdapter获取适配器\Conn返回适配器指向的conn\Do指向适配器执行\Close指向适配器执行}
 // SetAdapter sets custom adapter for current redis client.
+// 为当前redis客户端设置自定义适配器。
 func (r *Redis) SetAdapter(adapter Adapter) {
 	if r == nil {
 		return
@@ -558,6 +596,7 @@ func (r *Redis) SetAdapter(adapter Adapter) {
 }
 
 // GetAdapter returns the adapter that is set in current redis client.
+// 返回在当前redis客户端中设置的适配器。
 func (r *Redis) GetAdapter() Adapter {
 	if r == nil {
 		return nil
@@ -566,7 +605,9 @@ func (r *Redis) GetAdapter() Adapter {
 }
 
 // Conn retrieves and returns a connection object for continuous operations.
+// 检索并返回连续操作的连接对象。
 // Note that you should call Close function manually if you do not use this connection any further.
+// 请注意，如果不再使用此连接，则应手动调用Close函数。
 func (r *Redis) Conn(ctx context.Context) (*RedisConn, error) {
 	if r == nil {
 		return nil, gerror.NewCode(gcode.CodeInvalidParameter, errorNilRedis)
@@ -582,7 +623,9 @@ func (r *Redis) Conn(ctx context.Context) (*RedisConn, error) {
 }
 
 // Do sends a command to the server and returns the received reply.
+// 向服务器发送命令并返回收到的回复。
 // It uses json.Marshal for struct/slice/map type values before committing them to redis.
+// 在将struct/slice/map类型的值提交到redis之前，它使用json.Marshal处理这些值。
 func (r *Redis) Do(ctx context.Context, command string, args ...interface{}) (*gvar.Var, error) {
 	if r == nil {
 		return nil, gerror.NewCode(gcode.CodeInvalidParameter, errorNilRedis)
@@ -600,6 +643,7 @@ func (r *Redis) Do(ctx context.Context, command string, args ...interface{}) (*g
 }
 
 // Close closes current redis client, closes its connection pool and releases all its related resources.
+// 关闭当前redis客户端，关闭其连接池并释放其所有相关资源。
 func (r *Redis) Close(ctx context.Context) error {
 	if r == nil {
 		return gerror.NewCode(gcode.CodeInvalidParameter, errorNilRedis)
@@ -608,6 +652,7 @@ func (r *Redis) Close(ctx context.Context) error {
 }
 
 // String converts current object to a readable string.
+// 将当前对象转换为可读字符串。
 func (m *Subscription) String() string {
 	return fmt.Sprintf("%s: %s", m.Kind, m.Channel)
 }

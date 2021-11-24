@@ -1,6 +1,6 @@
 [redis]
     [[redis.default]] 
         host = "127.0.0.2"
-        port = "6399"
+        port = "6397"
         db = "0"
         pass = "kfredispwd"
