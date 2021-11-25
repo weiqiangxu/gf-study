@@ -10,6 +10,7 @@ package gdb
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/gogf/gf/v2/container/gmap"
@@ -25,6 +26,7 @@ import (
 )
 
 // DB defines the interfaces for ORM operations.
+// 定义ORM操作的接口。
 type DB interface {
 	// ===========================================================================
 	// Model creation.
@@ -170,6 +172,7 @@ type DB interface {
 }
 
 // Core is the base struct for database management.
+// 数据库管理的基本结构
 type Core struct {
 	db     DB              // DB interface object.
 	ctx    context.Context // Context for chaining operation only. Do not set a default value in Core initialization.
@@ -183,12 +186,15 @@ type Core struct {
 }
 
 // Driver is the interface for integrating sql drivers into package gdb.
+// 是将sql驱动程序集成到包gdb中的接口
 type Driver interface {
 	// New creates and returns a database object for specified database server.
+	// 为指定的数据库服务器创建并返回数据库对象。
 	New(core *Core, node *ConfigNode) (DB, error)
 }
 
 // Link is a common database function wrapper interface.
+// 是一个通用的数据库函数包装器接口。
 type Link interface {
 	Query(sql string, args ...interface{}) (*sql.Rows, error)
 	Exec(sql string, args ...interface{}) (sql.Result, error)
@@ -214,6 +220,7 @@ type Sql struct {
 }
 
 // DoInsertOption is the input struct for function DoInsert.
+// 是函数DoInsert的输入结构。
 type DoInsertOption struct {
 	OnDuplicateStr string
 	OnDuplicateMap map[string]interface{}
@@ -222,6 +229,7 @@ type DoInsertOption struct {
 }
 
 // TableField is the struct for table field.
+// 是表字段的结构。
 type TableField struct {
 	Index   int         // For ordering purpose as map is unordered.
 	Name    string      // Field name.
@@ -233,13 +241,15 @@ type TableField struct {
 	Comment string      // Comment.
 }
 
-// Counter  is the type for update count.
+// Counter is the type for update count.
+// 是更新计数的类型。
 type Counter struct {
 	Field string
 	Value float64
 }
 
 type (
+	// 是一个原始sql，它不会被视为参数，而是直接sql部分。
 	Raw    string                   // Raw is a raw sql that will not be treated as argument but as a direct sql part.
 	Value  = *gvar.Var              // Value is the field value type.
 	Record map[string]Value         // Record is the row record of the table.
@@ -277,9 +287,11 @@ const (
 
 var (
 	// instances is the management map for instances.
+	// instances是实例的管理映射。
 	instances = gmap.NewStrAnyMap(true)
 
 	// driverMap manages all custom registered driver.
+	// 管理所有自定义注册的驱动程序。
 	driverMap = map[string]Driver{
 		"mysql":  &DriverMysql{},
 		"mssql":  &DriverMssql{},
@@ -289,54 +301,74 @@ var (
 	}
 
 	// lastOperatorRegPattern is the regular expression pattern for a string
+	// 是字符串的正则表达式模式
 	// which has operator at its tail.
+	// 它的尾部有操作员。
 	lastOperatorRegPattern = `[<>=]+\s*$`
 
 	// regularFieldNameRegPattern is the regular expression pattern for a string
+	// 是字符串的正则表达式模式
 	// which is a regular field name of table.
+	// 是字符串的正则表达式模式
 	regularFieldNameRegPattern = `^[\w\.\-]+$`
 
 	// regularFieldNameWithoutDotRegPattern is similar to regularFieldNameRegPattern but not allows '.'.
+	// 类似于regularFieldNameRegPattern，但不允许
 	// Note that, although some databases allow char '.' in the field name, but it here does not allow '.'
+	// 请注意，虽然有些数据库允许字段名中包含字符“.”，但此处不允许
 	// in the field name as it conflicts with "db.table.field" pattern in SOME situations.
+	// 在某些情况下，字段名与“db.table.field”模式冲突。
 	regularFieldNameWithoutDotRegPattern = `^[\w\-]+$`
 
 	// tableFieldsMap caches the table information retrieved from database.
+	// tableFieldsMap缓存从数据库检索的表信息。
 	tableFieldsMap = gmap.New(true)
 
 	// allDryRun sets dry-run feature for all database connections.
+	// 为所有数据库连接设置干运行功能。
 	// It is commonly used for command options for convenience.
+	// 为方便起见，常用于命令选项。
 	allDryRun = false
 )
 
 func init() {
 	// allDryRun is initialized from environment or command options.
+	// allDryRun是从环境或命令选项初始化的。
 	allDryRun = gcmd.GetOptWithEnv(commandEnvKeyForDryRun, false).Bool()
 }
 
 // Register registers custom database driver to gdb.
+// 将自定义数据库驱动程序注册到gdb。
 func Register(name string, driver Driver) error {
 	driverMap[name] = driver
 	return nil
 }
 
 // New creates and returns an ORM object with global configurations.
+// 创建并返回具有全局配置的ORM对象。
 // The parameter `name` specifies the configuration group name,
+// 参数'name'指定配置组名称，
 // which is DefaultGroupName in default.
+// 参数'name'指定配置组名称，默认情况下为DefaultGroupName。
 func New(group ...string) (db DB, err error) {
+	// 获取全局cfg群组配置
 	groupName := configs.group
+	fmt.Println("groupName == ",groupName)
 	if len(group) > 0 && group[0] != "" {
 		groupName = group[0]
 	}
 	configs.RLock()
 	defer configs.RUnlock()
 
+	fmt.Println(configs.config)
+	// 配置找不到
 	if len(configs.config) < 1 {
 		return nil, gerror.NewCode(
 			gcode.CodeInvalidConfiguration,
 			"database configuration is empty, please set the database configuration before using",
 		)
-	}
+	}	
+	fmt.Println("configs.group === ",configs.group)
 	if _, ok := configs.config[groupName]; ok {
 		if node, err := getConfigNodeByGroup(groupName, true); err == nil {
 			c := &Core{
@@ -348,7 +380,11 @@ func New(group ...string) (db DB, err error) {
 				logger: glog.New(),
 				config: node,
 			}
+			// 从驱动之中寻找对应驱动
+			fmt.Println("driver map = ",driverMap)
 			if v, ok := driverMap[node.Type]; ok {
+				fmt.Println("node == > ",node)
+				// 通过反射能用对象查看对应类库的描述吗？
 				c.db, err = v.New(c, node)
 				if err != nil {
 					return nil, err
@@ -392,10 +428,14 @@ func Instance(name ...string) (db DB, err error) {
 }
 
 // getConfigNodeByGroup calculates and returns a configuration node of given group. It
+// getConfigNodeByGroup计算并返回给定组的配置节点
 // calculates the value internally using weight algorithm for load balance.
+// 使用负载平衡的权重算法在内部计算该值。
 //
 // The parameter `master` specifies whether retrieving a master node, or else a slave node
+// 参数“master”指定是检索主节点，还是检索从节点
 // if master-slave configured.
+// 如果主-从配置。
 func getConfigNodeByGroup(group string, master bool) (*ConfigNode, error) {
 	if list, ok := configs.config[group]; ok {
 		// Separates master and slave configuration nodes array.
@@ -425,11 +465,16 @@ func getConfigNodeByGroup(group string, master bool) (*ConfigNode, error) {
 }
 
 // getConfigNodeByWeight calculates the configuration weights and randomly returns a node.
+// getConfigNodeByWeight计算配置权重并随机返回一个节点。
 //
 // Calculation algorithm brief:
+// 计算算法简介
 // 1. If we have 2 nodes, and their weights are both 1, then the weight range is [0, 199];
+// 如果我们有2个节点，它们的权重都是1，那么权重范围是[0199]；
 // 2. Node1 weight range is [0, 99], and node2 weight range is [100, 199], ratio is 1:1;
+// 节点1的权重范围为[0,99]，节点2的权重范围为[100199]，比值为1:1；
 // 3. If the random number is 99, it then chooses and returns node1;.
+// 如果随机数为99，则选择并返回node1；。
 func getConfigNodeByWeight(cg ConfigGroup) *ConfigNode {
 	if len(cg) < 2 {
 		return &cg[0]
@@ -439,7 +484,9 @@ func getConfigNodeByWeight(cg ConfigGroup) *ConfigNode {
 		total += cg[i].Weight * 100
 	}
 	// If total is 0 means all the nodes have no weight attribute configured.
+	// 如果total为0，则表示所有节点均未配置权重属性。
 	// It then defaults each node's weight attribute to 1.
+	// 然后将每个节点的权重属性默认为1。
 	if total == 0 {
 		for i := 0; i < len(cg); i++ {
 			cg[i].Weight = 1
@@ -447,6 +494,7 @@ func getConfigNodeByWeight(cg ConfigGroup) *ConfigNode {
 		}
 	}
 	// Exclude the right border value.
+	// 排除右边框值。
 	r := grand.N(0, total-1)
 	min := 0
 	max := 0
@@ -463,8 +511,10 @@ func getConfigNodeByWeight(cg ConfigGroup) *ConfigNode {
 }
 
 // getSqlDb retrieves and returns a underlying database connection object.
+// 检索并返回基础数据库连接对象。
 // The parameter `master` specifies whether retrieves master node connection if
 // master-slave nodes are configured.
+// 参数“master”指定是否检索主节点连接如果配置了主从节点。
 func (c *Core) getSqlDb(master bool, schema ...string) (sqlDb *sql.DB, err error) {
 	// Load balance.
 	node, err := getConfigNodeByGroup(c.group, master)
@@ -487,6 +537,7 @@ func (c *Core) getSqlDb(master bool, schema ...string) (sqlDb *sql.DB, err error
 		node = &n
 	}
 	// Cache the underlying connection pool object by node.
+	// 按节点缓存基础连接池对象。
 	v := c.links.GetOrSetFuncLock(node.String(), func() interface{} {
 		intlog.Printf(
 			c.db.GetCtx(),
@@ -521,8 +572,10 @@ func (c *Core) getSqlDb(master bool, schema ...string) (sqlDb *sql.DB, err error
 			sqlDb.SetMaxOpenConns(defaultMaxOpenConnCount)
 		}
 		if c.config.MaxConnLifeTime > 0 {
+			// 自动检查是否使用“30s”、“60s”等字符串配置MaxConnLifetime。
 			// Automatically checks whether MaxConnLifetime is configured using string like: "30s", "60s", etc.
 			// Or else it is configured just using number, which means value in seconds.
+			// 否则它仅使用数字进行配置，即以秒为单位的值。
 			if c.config.MaxConnLifeTime > time.Second {
 				sqlDb.SetConnMaxLifetime(c.config.MaxConnLifeTime)
 			} else {

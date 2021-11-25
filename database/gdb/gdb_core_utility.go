@@ -15,6 +15,7 @@ import (
 )
 
 // MasterLink acts like function Master but with additional `schema` parameter specifying
+// 行为类似于函数主控，但带有额外的'schema'参数指定
 // the schema for the connection. It is defined for internal usage.
 // Also see Master.
 func (c *Core) MasterLink(schema ...string) (Link, error) {
@@ -26,6 +27,7 @@ func (c *Core) MasterLink(schema ...string) (Link, error) {
 }
 
 // SlaveLink acts like function Slave but with additional `schema` parameter specifying
+// 行为类似于函数从属，但带有额外的'schema'参数指定
 // the schema for the connection. It is defined for internal usage.
 // Also see Slave.
 func (c *Core) SlaveLink(schema ...string) (Link, error) {

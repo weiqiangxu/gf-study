@@ -20,10 +20,15 @@ import (
 )
 
 // With creates and returns an ORM model based on metadata of given object.
+// 基于给定对象的元数据创建并返回一个 ORM 模型
 // It also enables model association operations feature on given `object`.
+// 它还在给定的“对象”上启用模型关联操作功能。
 // It can be called multiple times to add one or more objects to model and enable
+// 可以多次调用以将一个或多个对象添加到模型并启用
 // their mode association operations feature.
+// 他们的模式关联操作功能。
 // For example, if given struct definition:
+// 例如，如果给定结构定义
 // type User struct {
 //	 gmeta.Meta `orm:"table:user"`
 // 	 Id         int           `json:"id"`
@@ -31,6 +36,7 @@ import (
 //	 UserDetail *UserDetail   `orm:"with:uid=id"`
 //	 UserScores []*UserScores `orm:"with:uid=id"`
 // }
+// 我们可以对属性启用模型关联操作
 // We can enable model association operations on attribute `UserDetail` and `UserScores` by:
 //     db.With(User{}.UserDetail).With(User{}.UserDetail).Scan(xxx)
 // Or:
@@ -53,6 +59,7 @@ func (m *Model) With(objects ...interface{}) *Model {
 }
 
 // WithAll enables model association operations on all objects that have "with" tag in the struct.
+// 对结构中具有“with”标记的所有对象启用模型关联操作。
 func (m *Model) WithAll() *Model {
 	model := m.getModel()
 	model.withAll = true
@@ -60,6 +67,7 @@ func (m *Model) WithAll() *Model {
 }
 
 // doWithScanStruct handles model association operations feature for single struct.
+// 处理单个结构的模型关联操作功能。
 func (m *Model) doWithScanStruct(pointer interface{}) error {
 	var (
 		err                 error
@@ -74,6 +82,7 @@ func (m *Model) doWithScanStruct(pointer interface{}) error {
 		return err
 	}
 	// It checks the with array and automatically calls the ScanList to complete association querying.
+	// 它检查with数组并自动调用ScanList完成关联查询
 	if !m.withAll {
 		for _, field := range currentStructFieldMap {
 			for _, withItem := range m.withArray {
@@ -86,6 +95,7 @@ func (m *Model) doWithScanStruct(pointer interface{}) error {
 					withItemReflectValueTypeStr = gstr.TrimAll(withItemReflectValueType.String(), "*[]")
 				)
 				// It does select operation if the field type is in the specified "with" type array.
+				// 如果字段类型在指定的“with”类型数组中，则执行选择操作。
 				if gstr.Compare(fieldTypeStr, withItemReflectValueTypeStr) == 0 {
 					allowedTypeStrArray = append(allowedTypeStrArray, fieldTypeStr)
 				}
@@ -101,12 +111,14 @@ func (m *Model) doWithScanStruct(pointer interface{}) error {
 			continue
 		}
 		// It just handlers "with" type attribute struct, so it ignores other struct types.
+		// 它只是处理“具有”类型属性结构，因此它忽略其他结构类型。
 		if !m.withAll && !gstr.InArray(allowedTypeStrArray, fieldTypeStr) {
 			continue
 		}
 		array := gstr.SplitAndTrim(parsedTagOutput.With, "=")
 		if len(array) == 1 {
 			// It also supports using only one column name
+			// 它还支持仅使用一个列名
 			// if both tables associates using the same column name.
 			array = append(array, parsedTagOutput.With)
 		}
