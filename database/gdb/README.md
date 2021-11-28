@@ -45,3 +45,12 @@ gdb.sql.getSqlDb()获取database/sql的*DB;
 
 如何将gihub.com/go-sql-driver注册到database/sql的呢?
 
+在import第三方包github.com/go-sql的时候init func
+
+通过调用database/sql.Register func将第三方包的mysqlDriver传递进入database/sql
+
+5. 获取mysql连接对象的在gdb.go/getSqlDb func，其中上层是 Slave/Master;
+
+而 All func之中指向gdb_core_underlying.go/DoQuery 才会通过gdb_core_utility.go/SlaveLink的func执行Open连接
+
+

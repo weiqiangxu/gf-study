@@ -130,6 +130,7 @@ func (c *Core) Close(ctx context.Context) (err error) {
 // It returns the default connection if master-slave not configured.
 // 如果未配置主从，则返回默认连接。
 func (c *Core) Master(schema ...string) (*sql.DB, error) {
+	fmt.Println("gdb_core.go 133 ")
 	useSchema := ""
 	if len(schema) > 0 && schema[0] != "" {
 		useSchema = schema[0]
@@ -144,6 +145,7 @@ func (c *Core) Master(schema ...string) (*sql.DB, error) {
 // It returns the default connection if master-slave not configured.
 // 如果未配置主从，则返回默认连接。
 func (c *Core) Slave(schema ...string) (*sql.DB, error) {
+	fmt.Println("gdb_core.go Slave")
 	useSchema := ""
 	if len(schema) > 0 && schema[0] != "" {
 		useSchema = schema[0]
@@ -162,6 +164,7 @@ func (c *Core) GetAll(ctx context.Context, sql string, args ...interface{}) (Res
 // DoGetAll queries and returns data records from database.
 // 查询并返回数据库中的数据记录。
 func (c *Core) DoGetAll(ctx context.Context, link Link, sql string, args ...interface{}) (result Result, err error) {
+	fmt.Println("gdb_core.go 165 ",reflect.TypeOf(c.db))
 	return c.db.DoQuery(ctx, link, sql, args...)
 }
 
@@ -325,6 +328,7 @@ func (c *Core) PingMaster() error {
 // PingSlave pings the slave node to check authentication or keeps the connection alive.
 // ping从属节点以检查身份验证或保持连接处于活动状态。
 func (c *Core) PingSlave() error {
+	fmt.Println("ping slave ")
 	if slave, err := c.db.Slave(); err != nil {
 		return err
 	} else {

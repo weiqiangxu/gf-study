@@ -522,6 +522,12 @@ func (m *Model) doGetAllBySql(sql string, args ...interface{}) (result Result, e
 			}
 		}
 	}
+	fmt.Println("gdb_model_select 525 = ",reflect.TypeOf(m.db))
+	// 输出
+	// gdb_model_select 525 =  *gdb.DriverMysql
+	fmt.Println("gdb_model_select 528 = ",reflect.TypeOf(m.db.DoGetAll))
+	// func(context.Context, gdb.Link, string, ...interface {})
+	// gdb_core.go -> DoGetAll
 	result, err = m.db.DoGetAll(
 		m.GetCtx(), m.getLink(false), sql, m.mergeArguments(args)...,
 	)

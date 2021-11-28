@@ -120,7 +120,7 @@ const (
 //    db.Model("? AS a, ? AS b", subQuery1, subQuery2)
 // DB.Model具体实现
 func (c *Core) Model(tableNameQueryOrStruct ...interface{}) *Model {
-	fmt.Println("89 Model = ",tableNameQueryOrStruct[0])
+	fmt.Println("gdb_model.go 123 Model = ",tableNameQueryOrStruct[0])
 	var (
 		tableStr  string
 		tableName string
@@ -171,6 +171,7 @@ func (c *Core) Model(tableNameQueryOrStruct ...interface{}) *Model {
 	if defaultModelSafe {
 		m.safe = true
 	}
+	fmt.Println("gdb_model.go 174")
 	return m
 }
 

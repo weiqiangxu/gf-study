@@ -9,6 +9,8 @@ package gdb
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"reflect"
 
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -97,6 +99,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result
 // QueryContext executes a prepared query statement with the given arguments
 // and returns the query results as a *Rows.
 func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*sql.Rows, error) {
+	fmt.Println("gdb_statement 101 = ",reflect.TypeOf(s))
 	result, err := s.doStmtCommit(ctx, stmtTypeQueryContext, args...)
 	if result != nil {
 		return result.(*sql.Rows), err

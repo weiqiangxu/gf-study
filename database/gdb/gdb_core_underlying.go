@@ -10,6 +10,8 @@ package gdb
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"reflect"
 
 	"github.com/gogf/gf/v2/container/gvar"
 	"github.com/gogf/gf/v2/internal/intlog"
@@ -29,12 +31,14 @@ func (c *Core) Query(ctx context.Context, sql string, args ...interface{}) (resu
 // 将sql字符串及其参数提交给基础驱动程序
 func (c *Core) DoQuery(ctx context.Context, link Link, sql string, args ...interface{}) (result Result, err error) {
 	// Transaction checks.
+	fmt.Println("gdb_core_underlying 32 ")
 	if link == nil {
 		if tx := TXFromCtx(ctx, c.db.GetGroup()); tx != nil {
 			// 首先，从上下文中检查和检索交易链接。
 			// Firstly, check and retrieve transaction link from context.
 			link = &txLink{tx.tx}
 		} else if link, err = c.SlaveLink(); err != nil {
+			// 在这里执行 - open - dial
 			// 否则它会从主节点创建一个。
 			// Or else it creates one from master node.
 			return nil, err
@@ -46,20 +50,28 @@ func (c *Core) DoQuery(ctx context.Context, link Link, sql string, args ...inter
 			link = &txLink{tx.tx}
 		}
 	}
-
+	fmt.Println("gdb_core_underlying 51 ",reflect.TypeOf(link))
+	// db_core_underlying 51  *gdb.dbLink
 	if c.GetConfig().QueryTimeout > 0 {
 		ctx, _ = context.WithTimeout(ctx, c.GetConfig().QueryTimeout)
 	}
 
 	// Link execution.
 	sql, args = formatSql(sql, args)
+	// *gdb.DriverMysql
+	fmt.Println(reflect.TypeOf(c.db))
+	// 这是一个空func
 	sql, args, err = c.db.DoCommit(ctx, link, sql, args)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("underlying 64 = ",sql)
+	// underlying 64 =  SELECT * FROM `user` LIMIT 0,10
 
 	mTime1 := gtime.TimestampMilli()
+	fmt.Println("gdb_cire_underlying 71 ")
 	rows, err := link.QueryContext(ctx, sql, args...)
+	// github.com/go-mysql.QueryContext
 	mTime2 := gtime.TimestampMilli()
 	if err == nil {
 		result, err = c.convertRowsToResult(ctx, rows)
@@ -166,6 +178,7 @@ func (c *Core) DoExec(ctx context.Context, link Link, sql string, args ...interf
 // The parameter `link` specifies the current database connection operation object. You can modify the sql
 // string `sql` and its arguments `args` as you wish before they're committed to driver.
 func (c *Core) DoCommit(ctx context.Context, link Link, sql string, args []interface{}) (newSql string, newArgs []interface{}, err error) {
+	fmt.Println("gdb_core_underlying.go 177 ")
 	return sql, args, nil
 }
 

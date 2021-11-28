@@ -11,6 +11,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/gogf/gf/v2/container/gmap"
@@ -386,7 +387,8 @@ func New(group ...string) (db DB, err error) {
 			// 然后 github.com/go-sql执行database/sql.Register 
 			// database/sql.register -> 是将github.com的MySQLDriver实例化对象传入(变成database/sql.drivers之中的一个)
 			// 至此 - driver已经拥有了github.com/go-sql的实例化对象
-			// 并且此时暂未发生SQL连接
+			// 并且此时暂未发生SQL连接(tcp dial还未执行过)
+			// 返回DB对象指针
 			if v, ok := driverMap[node.Type]; ok {
 				fmt.Println("node == > ",node)
 				// 通过反射能用对象查看对应类库的描述吗？
@@ -522,6 +524,8 @@ func getConfigNodeByWeight(cg ConfigGroup) *ConfigNode {
 // master-slave nodes are configured.
 // 参数“master”指定是否检索主节点连接如果配置了主从节点。
 func (c *Core) getSqlDb(master bool, schema ...string) (sqlDb *sql.DB, err error) {
+	fmt.Println("gdb_core.go 526")
+	fmt.Println(reflect.TypeOf(c))
 	// Load balance.
 	node, err := getConfigNodeByGroup(c.group, master)
 	if err != nil {
@@ -561,7 +565,7 @@ func (c *Core) getSqlDb(master bool, schema ...string) (sqlDb *sql.DB, err error
 				)
 			}
 		}()
-
+		fmt.Println("gdb_core.go 568 ")
 		sqlDb, err = c.db.Open(node)
 		if err != nil {
 			return nil

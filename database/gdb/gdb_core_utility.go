@@ -8,6 +8,8 @@
 package gdb
 
 import (
+	"fmt"
+
 	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/text/gregex"
@@ -31,6 +33,7 @@ func (c *Core) MasterLink(schema ...string) (Link, error) {
 // the schema for the connection. It is defined for internal usage.
 // Also see Slave.
 func (c *Core) SlaveLink(schema ...string) (Link, error) {
+	fmt.Println("gdb_core_utility.go 36")
 	db, err := c.db.Slave(schema...)
 	if err != nil {
 		return nil, err
