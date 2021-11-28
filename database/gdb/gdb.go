@@ -382,9 +382,15 @@ func New(group ...string) (db DB, err error) {
 			}
 			// 从驱动之中寻找对应驱动
 			fmt.Println("driver map = ",driverMap)
+			// 其中new MysqlDriver的时候 - 已经将DriverMysql里面import github.com/go-sql-driver的init func执行,
+			// 然后 github.com/go-sql执行database/sql.Register 
+			// database/sql.register -> 是将github.com的MySQLDriver实例化对象传入(变成database/sql.drivers之中的一个)
+			// 至此 - driver已经拥有了github.com/go-sql的实例化对象
+			// 并且此时暂未发生SQL连接
 			if v, ok := driverMap[node.Type]; ok {
 				fmt.Println("node == > ",node)
 				// 通过反射能用对象查看对应类库的描述吗？
+				// driverMap - 驱动集合 - struct实例化
 				c.db, err = v.New(c, node)
 				if err != nil {
 					return nil, err

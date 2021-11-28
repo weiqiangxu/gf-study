@@ -17,25 +17,31 @@ import (
 )
 
 // Query commits one query SQL to underlying driver and returns the execution result.
+// 向底层驱动程序提交一个查询SQL并返回执行结果。
 // It is most commonly used for data querying.
 func (c *Core) Query(ctx context.Context, sql string, args ...interface{}) (result Result, err error) {
 	return c.db.DoQuery(ctx, nil, sql, args...)
 }
 
 // DoQuery commits the sql string and its arguments to underlying driver
+// 将sql字符串及其参数提交给基础驱动程序
 // through given link object and returns the execution result.
+// 将sql字符串及其参数提交给基础驱动程序
 func (c *Core) DoQuery(ctx context.Context, link Link, sql string, args ...interface{}) (result Result, err error) {
 	// Transaction checks.
 	if link == nil {
 		if tx := TXFromCtx(ctx, c.db.GetGroup()); tx != nil {
+			// 首先，从上下文中检查和检索交易链接。
 			// Firstly, check and retrieve transaction link from context.
 			link = &txLink{tx.tx}
 		} else if link, err = c.SlaveLink(); err != nil {
+			// 否则它会从主节点创建一个。
 			// Or else it creates one from master node.
 			return nil, err
 		}
 	} else if !link.IsTransaction() {
 		// If current link is not transaction link, it checks and retrieves transaction from context.
+		// 如果当前链接不是事务链接，它会检查并从上下文中检索事务。
 		if tx := TXFromCtx(ctx, c.db.GetGroup()); tx != nil {
 			link = &txLink{tx.tx}
 		}
@@ -84,13 +90,17 @@ func (c *Core) DoQuery(ctx context.Context, link Link, sql string, args ...inter
 }
 
 // Exec commits one query SQL to underlying driver and returns the execution result.
+// Exec 向底层驱动提交一条查询 SQL 并返回执行结果。
 // It is most commonly used for data inserting and updating.
+// 它最常用于数据插入和更新。
 func (c *Core) Exec(ctx context.Context, sql string, args ...interface{}) (result sql.Result, err error) {
 	return c.db.DoExec(ctx, nil, sql, args...)
 }
 
 // DoExec commits the sql string and its arguments to underlying driver
+// DoExec 将 sql 字符串及其参数提交给底层驱动程序
 // through given link object and returns the execution result.
+// 通过给定的链接对象并返回执行结果。
 func (c *Core) DoExec(ctx context.Context, link Link, sql string, args ...interface{}) (result sql.Result, err error) {
 	// Transaction checks.
 	if link == nil {

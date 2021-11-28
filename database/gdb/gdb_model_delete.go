@@ -21,18 +21,22 @@ import (
 // see Model.Where.
 func (m *Model) Delete(where ...interface{}) (result sql.Result, err error) {
 	if len(where) > 0 {
+		// 删除
 		return m.Where(where[0], where[1:]...).Delete()
 	}
 	defer func() {
 		if err == nil {
+			// 移除缓存
 			m.checkAndRemoveCache()
 		}
 	}()
+	// 逻辑删除 ---- 感觉有点多余
 	var (
 		fieldNameDelete                               = m.getSoftFieldNameDeleted()
 		conditionWhere, conditionExtra, conditionArgs = m.formatCondition(false, false)
 	)
 	// Soft deleting.
+	// 软删除 - 逻辑删除
 	if !m.unscoped && fieldNameDelete != "" {
 		return m.db.DoUpdate(
 			m.GetCtx(),

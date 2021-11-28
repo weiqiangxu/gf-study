@@ -32,6 +32,7 @@ type DriverMysql struct {
 // It implements the interface of gdb.Driver for extra database driver installation.
 // 它实现了gdb.Driver接口，用于安装额外的数据库驱动程序。
 func (d *DriverMysql) New(core *Core, node *ConfigNode) (DB, error) {
+	// 实例化mysql驱动实例
 	return &DriverMysql{
 		Core: core,
 	}, nil
@@ -60,6 +61,7 @@ func (d *DriverMysql) Open(config *ConfigNode) (*sql.DB, error) {
 		}
 	}
 	intlog.Printf(d.GetCtx(), "Open: %s", source)
+	// 调用的sql是
 	if db, err := sql.Open("mysql", source); err == nil {
 		return db, nil
 	} else {

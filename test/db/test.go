@@ -13,6 +13,8 @@ func main() {
 	// 获取默认配置的数据库对象(配置名称为"default")
 	db := g.DB()
 	fmt.Println(db)
+	// db.Model的实现 - DB.Model -> Core.Model -> gdb_model.go[Model]
+	// DB抽象类 - 被Core抽象类继承
 	users,err := db.Model("user").Limit(0, 10).All()
 	if err != nil {
 		fmt.Println(err.Error())
