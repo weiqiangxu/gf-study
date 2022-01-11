@@ -6,4 +6,5 @@ module.exports = {
     path: path.resolve(__dirname, 'dist'),
     filename: 'main.bundle.js',
   },
+  mode: 'production' // 设置mode
 };
