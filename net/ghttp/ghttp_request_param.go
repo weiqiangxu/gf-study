@@ -246,6 +246,8 @@ func (r *Request) parseForm() {
 		var err error
 		if gstr.Contains(contentType, "multipart/") {
 			// multipart/form-data, multipart/mixed
+			fmt.Println("r.Server.config.FormParsingMemory == ")
+			fmt.Println(r.Server.config.FormParsingMemory)
 			if err = r.ParseMultipartForm(r.Server.config.FormParsingMemory); err != nil {
 				panic(gerror.WrapCode(gcode.CodeInvalidRequest, err, ""))
 			}
